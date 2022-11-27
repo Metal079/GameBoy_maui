@@ -10,13 +10,13 @@ namespace GameBoy_maui
 		public MainPage()
 		{
 			InitializeComponent();
-            byte[] bytes = GB.LoadRom();
-            GB GB_Sys = new GB();
+            string romPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\cpu_instrs\individual\06-ld r,r.gb";
+            byte[] bytes = GB.LoadRom(romPath);
         }
 
     }
 
-    public partial class GB
+    public static class GB
     {
         // Create system hardware
         public struct Registers
@@ -29,7 +29,7 @@ namespace GameBoy_maui
             byte F;
             byte H;
             byte L;
-            public ushort PC;
+            public static ushort PC;
             ushort SP;
 
             // Constructor
@@ -38,26 +38,27 @@ namespace GameBoy_maui
                 PC = 0x0100;
             }
         }
-        public byte[] memory= new byte[0xFFFF]; // 16 bit long memory, each cell 8 bits
+        //byte[] memory= new byte[0xFFFF]; // 16 bit long memory, each cell 8 bits
+        static byte[] memory = new byte[0xFFFF];
 
         // Load ROM file as array of bytes (8 bit each)
-        public static byte[] LoadRom()
+        public static byte[] LoadRom(string romPath)
         {
-            string romPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\cpu_instrs\individual\06-ld r,r.gb";
+
             byte[] Bytes = File.ReadAllBytes(romPath);
 
             return Bytes;
         }
 
         // Return next 8 bits and increment PC
-        public byte fetchNextByte(byte memory)
+        public static byte fetchNextByte(byte memory)
         {
-            byte nextByte = memory[Registers.PC];
+            byte nextByte = GB.memory[Registers.PC];
             Registers.PC += 1;
             return nextByte;
         }
 
-        public void RunOpcode(byte opcode)
+        public static void RunOpcode(byte opcode)
         {
             //Dictionary<int, Action> opcodeTable = new Dictionary<int, Action>();
 
