@@ -1,4 +1,7 @@
-﻿namespace GameBoy_maui
+﻿using System;
+using System.Collections.Generic;
+
+namespace GameBoy_maui
 {
 	public partial class MainPage : ContentPage
 	{
@@ -7,16 +10,16 @@
 		public MainPage()
 		{
 			InitializeComponent();
-            byte[] Bytes = GB.loadRom();
+            byte[] bytes = GB.LoadRom();
             GB GB_Sys = new GB();
         }
 
     }
 
-    public class GB
+    public partial class GB
     {
         // Create system hardware
-        struct Registers
+        public struct Registers
         {
             byte A;
             byte B;
@@ -26,22 +29,49 @@
             byte F;
             byte H;
             byte L;
-        }
-        private ushort[] memory= null;
+            public ushort PC;
+            ushort SP;
 
-        public static byte[] loadRom()
+            // Constructor
+            public Registers()
+            {
+                PC = 0x0100;
+            }
+        }
+        public byte[] memory= new byte[0xFFFF]; // 16 bit long memory, each cell 8 bits
+
+        // Load ROM file as array of bytes (8 bit each)
+        public static byte[] LoadRom()
         {
             string romPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\cpu_instrs\individual\06-ld r,r.gb";
-            byte[] Bytes1 = File.ReadAllBytes(romPath);
+            byte[] Bytes = File.ReadAllBytes(romPath);
 
-            Console.Write("hello");
-
-            return Bytes1;
+            return Bytes;
         }
 
-        public void opcodes()
+        // Return next 8 bits and increment PC
+        public byte fetchNextByte(byte memory)
         {
+            byte nextByte = memory[Registers.PC];
+            Registers.PC += 1;
+            return nextByte;
+        }
 
+        public void RunOpcode(byte opcode)
+        {
+            //Dictionary<int, Action> opcodeTable = new Dictionary<int, Action>();
+
+            switch (opcode)
+            {
+                //NOP
+                // Do nothing
+                case 0x00:
+                    break;
+
+                //LD BC,u16 - 0x01
+                case 0x01:
+                    break;
+            }
         }
     }
 }
