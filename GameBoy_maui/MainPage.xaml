@@ -12,6 +12,11 @@
         <GraphicsView Drawable="{StaticResource drawable}"
                       HeightRequest="144"
                       WidthRequest="160" />
+
+        <Entry x:Name="entry"
+               Placeholder="Enter text"
+               TextChanged="OnEntryTextChanged"
+               Completed="OnEntryCompleted" />
     </VerticalStackLayout>
 
 </ContentPage>
