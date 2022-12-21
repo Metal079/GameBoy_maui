@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.ComponentModel;
 
 namespace GameBoy_maui;
 
@@ -24,26 +25,35 @@ public static class MauiProgram
 	}
 }
 
-public static class GB
+
+public static class GB 
 {
+    static GB()
+    {
+        Registers Register = new Registers();
+    }
+
+    public static MainPageViewModel viewModel;
+
     // Create system hardware
     public struct Registers
     {
-        public static byte A;
-        public static byte B;
-        public static byte C;
-        public static byte D;
-        public static byte E;
-        public static byte F;
-        public static byte H;
-        public static byte L;
-        public static ushort PC;
-        public static ushort SP;
+        public static byte A { get; set; }
+        public static byte B { get; set; }
+        public static byte C { get; set; }
+        public static byte D { get; set; }
+        public static byte E { get; set; }
+        public static byte F { get; set; }
+        public static byte H { get; set; }
+        public static byte L { get; set; }
+        public static ushort PC { get; set; }
+        public static ushort SP { get; set; }
 
         // Constructor
         public Registers()
         {
-            PC = 0x0100;
+            Registers.A = 17;
+            Registers.PC = 0x0100;
         }
     }
     //byte[] memory= new byte[0xFFFF]; // 16 bit long memory, each cell 8 bits
@@ -82,11 +92,27 @@ public static class GB
 
     }
 
+    // Set UI register values 
+    private static void SetRegisters()
+    {
+        viewModel.A = Registers.A;
+        viewModel.B = Registers.B;
+        viewModel.C = Registers.C;
+        viewModel.D = Registers.D;
+        viewModel.E = Registers.E;
+        viewModel.F = Registers.F;
+        viewModel.H = Registers.H;
+        viewModel.L = Registers.L;
+        viewModel.SP = Registers.SP;
+        viewModel.PC = Registers.PC;
+    }
+
     // Run inputted opcode, return m-cycles opcode takes
     public static int RunOpcode(byte opcode)
     {
         //Dictionary<int, Action> opcodeTable = new Dictionary<int, Action>();
-
+        Registers.A += 1;
+        SetRegisters();
         switch (opcode)
         {
             //NOP

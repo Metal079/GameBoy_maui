@@ -1,18 +1,24 @@
-﻿using System;
+﻿using __XamlGeneratedCode__;
+using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace GameBoy_maui
 {
 	public partial class MainPage : ContentPage
 	{
-		int count = 0;
-
 		public MainPage()
 		{
             InitializeComponent();
+
             string romPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\cpu_instrs\individual\06-ld r,r.gb";
             byte[] bytes = GB.LoadRom(romPath);
+
+            var viewModel = new MainPageViewModel();
+            BindingContext = viewModel;
+            GB.viewModel = viewModel;
         }
 
         void OnEntryTextChanged(object sender, TextChangedEventArgs e)
@@ -44,3 +50,127 @@ namespace graphics
     }
 }
 
+// GB View Model for registers and other stats
+namespace GameBoy_maui
+{
+    public class MainPageViewModel : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        private byte _regA;
+        private byte _regB;
+        private byte _regC;
+        private byte _regD;
+        private byte _regE;
+        private byte _regF;
+        private byte _regH;
+        private byte _regL;
+        private ushort _regSP;
+        private ushort _regPC;
+
+        public byte A
+        {
+            get => _regA;
+            set
+            {
+                _regA = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public byte B
+        {
+            get => _regB;
+            set
+            {
+                _regB = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public byte C
+        {
+            get => _regC;
+            set
+            {
+                _regC = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public byte D
+        {
+            get => _regD;
+            set
+            {
+                _regD = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public byte E
+        {
+            get => _regE;
+            set
+            {
+                _regE = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public byte F
+        {
+            get => _regF;
+            set
+            {
+                _regF = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public byte H
+        {
+            get => _regH;
+            set
+            {
+                _regH = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public byte L
+        {
+            get => _regL;
+            set
+            {
+                _regL = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public ushort SP
+        {
+            get => _regSP;
+            set
+            {
+                _regSP = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public ushort PC
+        {
+            get => _regPC;
+            set
+            {
+                _regPC = value;
+                OnPropertyChanged();
+            }
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+}

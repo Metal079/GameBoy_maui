@@ -1,14 +1,16 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
-<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+﻿<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:drawable="clr-namespace:graphics"
-             x:Class="GameBoy_maui.MainPage">
+             x:Class="GameBoy_maui.MainPage"
+             xmlns:local="clr-namespace:GameBoy_maui">
+
 
     <ContentPage.Resources>
         <drawable:GraphicsDrawable x:Key="drawable" />
     </ContentPage.Resources>
 
     <VerticalStackLayout>
+
         <GraphicsView Drawable="{StaticResource drawable}"
                       HeightRequest="144"
                       WidthRequest="160" />
@@ -17,6 +19,50 @@
                Placeholder="Enter text"
                TextChanged="OnEntryTextChanged"
                Completed="OnEntryCompleted" />
-    </VerticalStackLayout>
 
+
+        <HorizontalStackLayout Spacing="10">
+            <Label Text="REG A: " />
+            <Label Text="{Binding A}" />
+
+            <Label Text="  REG B: " />
+            <Label Text="{Binding B}" />
+        </HorizontalStackLayout>
+
+        <HorizontalStackLayout Spacing="10">
+            <Label Text="REG C: " />
+            <Label Text="{Binding C}" />
+
+            <Label Text="  REG D: " />
+            <Label Text="{Binding D}" />
+        </HorizontalStackLayout>
+
+        <HorizontalStackLayout Spacing="10">
+            <Label Text="REG E: " />
+            <Label Text="{Binding E}" />
+
+            <Label Text="  REG F: " />
+            <Label Text="{Binding F}" />
+        </HorizontalStackLayout>
+
+        <HorizontalStackLayout Spacing="10">
+            <Label Text="REG H: " />
+            <Label Text="{Binding H}" />
+
+            <Label Text="  REG L: " />
+            <Label Text="{Binding L}" />
+        </HorizontalStackLayout>
+
+        <HorizontalStackLayout Spacing="10">
+            <Label Text="REG SP: " />
+            <Label Text="{Binding SP}" />
+
+            <Label Text="  REG PC: " />
+            <Label Text="{Binding PC}" />
+        </HorizontalStackLayout>
+
+
+    </VerticalStackLayout>
 </ContentPage>
+
+
