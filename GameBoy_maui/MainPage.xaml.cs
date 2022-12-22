@@ -65,6 +65,12 @@ namespace GameBoy_maui
         private byte _regF;
         private byte _regH;
         private byte _regL;
+
+        private ushort _regAF;
+        private ushort _regBC;
+        private ushort _regDE;
+        private ushort _regHL;
+
         private ushort _regSP;
         private ushort _regPC;
 
@@ -144,6 +150,46 @@ namespace GameBoy_maui
             set
             {
                 _regL = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public ushort AF
+        {
+            get => _regAF;
+            set
+            {
+                _regAF = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public ushort BC
+        {
+            get => _regBC;
+            set
+            {
+                _regBC = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public ushort DE
+        {
+            get => _regDE;
+            set
+            {
+                _regDE = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public ushort HL
+        {
+            get => _regHL;
+            set
+            {
+                _regHL = value;
                 OnPropertyChanged();
             }
         }

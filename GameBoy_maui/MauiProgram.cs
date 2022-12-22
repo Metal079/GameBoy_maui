@@ -30,32 +30,41 @@ public static class GB
 {
     static GB()
     {
-        Registers Register = new Registers();
+        //Registers Register = new Registers();
+        //Flags flags = new Flags();
     }
 
     public static MainPageViewModel viewModel;
 
     // Create system hardware
-    public struct Registers
-    {
-        public static byte A { get; set; }
-        public static byte B { get; set; }
-        public static byte C { get; set; }
-        public static byte D { get; set; }
-        public static byte E { get; set; }
-        public static byte F { get; set; }
-        public static byte H { get; set; }
-        public static byte L { get; set; }
-        public static ushort PC { get; set; }
-        public static ushort SP { get; set; }
+    static byte RegA = 0;
+    static byte RegB = 0;
+    static byte RegC = 0;
+    static byte RegD = 0;
+    static byte RegE = 0;
+    static byte RegF = 0;
+    static byte RegH = 0;
+    static byte RegL = 0;
+    static ushort SP = 0;
+    static ushort PC = 0;
 
-        // Constructor
-        public Registers()
+    // Flags
+    public struct Flags
+    {
+        public static bool Z { get; set; }
+        public static bool N { get; set; }
+        public static bool H { get; set; }
+        public static bool C { get; set; }
+
+        public Flags()
         {
-            Registers.A = 17;
-            Registers.PC = 0x0100;
+            Z = false;
+            N = false;
+            H = false;
+            C = false;
         }
     }
+
     //byte[] memory= new byte[0xFFFF]; // 16 bit long memory, each cell 8 bits
     static byte[] memory = new byte[0xFFFF];
 
@@ -71,48 +80,59 @@ public static class GB
     // Return next 8 bits and increment PC
     public static byte FetchNextByte()
     {
-        byte nextByte = memory[Registers.PC];
-        Registers.PC += 1;
+        byte nextByte = memory[PC];
+        PC += 1;
         return nextByte;
     }
 
-    /// Templates for different opcodes
-    // LD 8-bit Load/Store/Move
-    //private static void LD8Template(var B)
-    //{
-        //System.Diagnostics.Debug.WriteLine("LD BC,u16 - 0x01");
-    //}
-
-    // Increment registers
-    private static void Increment(byte upperByte, byte lowerByte)
+    // Increment 16-bit registers (ex. BC)
+    private static byte[] IncrementPseudoRegister(byte upperByte, byte lowerByte)
     {
-        ushort pseudo16Bit = (ushort)upperByte;
-        System.Diagnostics.Debug.WriteLine("LD (BC),A - 0x02");
-        //ushort pseudo16Bit = BitConverter.ToInt16(upperByte, lowerByte);
+        ushort pseudo16Bit = (ushort)((upperByte << 8) + lowerByte);
+        pseudo16Bit++;
 
+        upperByte = (byte) (pseudo16Bit >> 8);
+        lowerByte = (byte) (pseudo16Bit & 0xFF);
+        byte[] answer = new byte[2];
+        answer[0] = upperByte;
+        answer[1] = lowerByte;
+        return answer;
     }
 
     // Set UI register values 
-    private static void SetRegisters()
+    private static void SetViewModelRegisters()
     {
-        viewModel.A = Registers.A;
-        viewModel.B = Registers.B;
-        viewModel.C = Registers.C;
-        viewModel.D = Registers.D;
-        viewModel.E = Registers.E;
-        viewModel.F = Registers.F;
-        viewModel.H = Registers.H;
-        viewModel.L = Registers.L;
-        viewModel.SP = Registers.SP;
-        viewModel.PC = Registers.PC;
+        viewModel.A = RegA;
+        viewModel.B = RegB;
+        viewModel.C = RegC;
+        viewModel.D = RegD;
+        viewModel.E = RegE;
+        viewModel.F = RegF;
+        viewModel.H = RegH;
+        viewModel.L = RegL;
+        viewModel.SP = SP;
+        viewModel.PC = PC;
+
+        viewModel.BC = (ushort)((RegB << 8) + RegC);
+    }
+
+    // Load into pseudo registers from memory (ex. nn -> BC)
+    private static void LoadMemToPseudoReg(ref byte reg1, ref byte reg2)
+    {
+        reg1 = FetchNextByte();
+        reg2 = FetchNextByte();
+    }
+
+    // Load into pseudo registers from other reg (ex. A -> BC)
+    private static void LoadRegToPseudoReg(ref byte reg1, ref byte reg2, ref byte reg3)
+    {
+
     }
 
     // Run inputted opcode, return m-cycles opcode takes
     public static int RunOpcode(byte opcode)
     {
-        //Dictionary<int, Action> opcodeTable = new Dictionary<int, Action>();
-        Registers.A += 1;
-        SetRegisters();
+        SetViewModelRegisters();
         switch (opcode)
         {
             //NOP
@@ -123,8 +143,7 @@ public static class GB
             // LD BC,u16 - 0x01
             case 0x01:
                 System.Diagnostics.Debug.WriteLine("LD BC,u16 - 0x01");
-                Registers.C = FetchNextByte();
-                Registers.B = FetchNextByte();
+                LoadMemToPseudoReg(ref RegC, ref RegB);
                 return 3;
 
             // LD (BC),A - 0x02
@@ -135,17 +154,23 @@ public static class GB
             // INC BC - 0x03
             case 0x03:
                 System.Diagnostics.Debug.WriteLine("INC BC - 0x03");
-                Increment(Registers.B, Registers.C);
-                return 0;
+                byte[] BC = new byte[2];
+                BC = IncrementPseudoRegister(RegB, RegC);
+
+                RegB = BC[0];
+                RegC = BC[1];
+                return 2;
 
             // INC B - 0x04
             case 0x04:
                 System.Diagnostics.Debug.WriteLine("INC B - 0x04");
+                RegB++;
                 return 0;
 
             // DEC B - 0x05
             case 0x05:
                 System.Diagnostics.Debug.WriteLine("DEC B - 0x05");
+                RegB--;
                 return 0;
 
             // LD B,u8 - 0x06
@@ -197,6 +222,12 @@ public static class GB
             case 0x0F:
                 System.Diagnostics.Debug.WriteLine("RRCA - 0x0F");
                 return 0;
+
+            // LD DE,u16 - 0x11
+            case 0x11:
+                RegE = FetchNextByte();
+                RegD = FetchNextByte();
+                return 3;
 
             default:
                 System.Diagnostics.Debug.WriteLine("OPCODE: " + opcode + " not implemented!");

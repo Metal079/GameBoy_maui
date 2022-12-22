@@ -25,24 +25,32 @@
             <Label Text="REG A: " />
             <Label Text="{Binding A}" />
 
-            <Label Text="  REG B: " />
-            <Label Text="{Binding B}" />
-        </HorizontalStackLayout>
-
-        <HorizontalStackLayout Spacing="10">
-            <Label Text="REG C: " />
-            <Label Text="{Binding C}" />
-
-            <Label Text="  REG D: " />
-            <Label Text="{Binding D}" />
-        </HorizontalStackLayout>
-
-        <HorizontalStackLayout Spacing="10">
-            <Label Text="REG E: " />
-            <Label Text="{Binding E}" />
-
             <Label Text="  REG F: " />
             <Label Text="{Binding F}" />
+
+            <Label Text="  REG AF: " />
+            <Label Text="{Binding AF}" />
+        </HorizontalStackLayout>
+
+        <HorizontalStackLayout Spacing="10">
+            <Label Text="REG B: " />
+            <Label Text="{Binding B}" />
+            
+            <Label Text="  REG C: " />
+            <Label Text="{Binding C}" />
+
+            <Label Text="  REG BC " />
+            <Label Text="{Binding BC}" />
+        </HorizontalStackLayout>
+
+        <HorizontalStackLayout Spacing="10">
+            <Label Text="REG D: " />
+            <Label Text="{Binding D}" />
+            
+            <Label Text="  REG E: " />
+            <Label Text="{Binding E}" />
+
+            
         </HorizontalStackLayout>
 
         <HorizontalStackLayout Spacing="10">
