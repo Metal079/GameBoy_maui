@@ -13,8 +13,8 @@ namespace GameBoy_maui
 		{
             InitializeComponent();
 
-            string romPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\cpu_instrs\individual\06-ld r,r.gb";
-            byte[] bytes = GB.LoadRom(romPath);
+            //string romPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\cpu_instrs\individual\06-ld r,r.gb";
+            //byte[] bytes = GB.LoadRom(romPath);
 
             var viewModel = new MainPageViewModel();
             BindingContext = viewModel;
@@ -33,6 +33,7 @@ namespace GameBoy_maui
             string text = ((Entry)sender).Text;
             byte command = Byte.Parse(text);
             GB.RunOpcode(command);
+            GB.SetViewModelRegisters();
         }
     }
 }

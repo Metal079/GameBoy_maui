@@ -65,6 +65,42 @@ public static class GB
         }
     }
 
+    // Set Z flag in F register
+    private static void SetFlagZ(bool value)
+    {
+        if (value)
+            RegF = (byte)(RegF | 0b1000_0000);
+        else
+            RegF = (byte)(RegF & 0b0111_0000);
+    }
+
+    // Set N flag in F register
+    private static void SetFlagN(bool value)
+    {
+        if (value)
+            RegF = (byte)(RegF | 0b1000_0000);
+        else
+            RegF = (byte)(RegF & 0b0111_0000);
+    }
+
+    // Set H flag in F register
+    private static void SetFlagH(bool value)
+    {
+        if (value)
+            RegF = (byte)(RegF | 0b1000_0000);
+        else
+            RegF = (byte)(RegF & 0b0111_0000);
+    }
+
+    // Set C flag in F register
+    private static void SetFlagC(bool value)
+    {
+        if (value)
+            RegF = (byte)(RegF | 0b1000_0000);
+        else
+            RegF = (byte)(RegF & 0b0111_0000);
+    }
+
     //byte[] memory= new byte[0xFFFF]; // 16 bit long memory, each cell 8 bits
     static byte[] memory = new byte[0xFFFF];
 
@@ -86,21 +122,34 @@ public static class GB
     }
 
     // Increment 16-bit registers (ex. BC)
-    private static byte[] IncrementPseudoRegister(byte upperByte, byte lowerByte)
+    private static int IncrementPseudoRegister(ref byte upperByte, ref byte lowerByte)
     {
         ushort pseudo16Bit = (ushort)((upperByte << 8) + lowerByte);
         pseudo16Bit++;
 
         upperByte = (byte) (pseudo16Bit >> 8);
         lowerByte = (byte) (pseudo16Bit & 0xFF);
-        byte[] answer = new byte[2];
-        answer[0] = upperByte;
-        answer[1] = lowerByte;
-        return answer;
+        return 2;
+    }
+
+    // Increment 8-bit registers
+    private static int IncrementRegister(ref byte register)
+    {
+        register++;
+
+        // Set flags
+        if (register == 0)
+            SetFlagZ(true);
+        else
+            SetFlagZ(false);
+
+        SetFlagN(false);
+
+        return 1;
     }
 
     // Set UI register values 
-    private static void SetViewModelRegisters()
+    public static void SetViewModelRegisters()
     {
         viewModel.A = RegA;
         viewModel.B = RegB;
@@ -123,16 +172,17 @@ public static class GB
         reg2 = FetchNextByte();
     }
 
-    // Load into pseudo registers from other reg (ex. A -> BC)
-    private static void LoadRegToPseudoReg(ref byte reg1, ref byte reg2, ref byte reg3)
+    // Load into pseudo registers from other reg (ex. A -> BC), reg1 -> B, reg2 -> C, reg3 -> A
+    private static int LoadRegToPseudoReg(ref byte reg1, ref byte reg2, ref byte reg3)
     {
-
+        reg1 = 0;
+        reg2 = reg3;
+        return 2;
     }
 
     // Run inputted opcode, return m-cycles opcode takes
     public static int RunOpcode(byte opcode)
     {
-        SetViewModelRegisters();
         switch (opcode)
         {
             //NOP
@@ -149,23 +199,17 @@ public static class GB
             // LD (BC),A - 0x02
             case 0x02:
                 System.Diagnostics.Debug.WriteLine("LD (BC),A - 0x02");
-                return 0;
+                return LoadRegToPseudoReg(ref RegB, ref RegC, ref RegA);
 
             // INC BC - 0x03
             case 0x03:
                 System.Diagnostics.Debug.WriteLine("INC BC - 0x03");
-                byte[] BC = new byte[2];
-                BC = IncrementPseudoRegister(RegB, RegC);
-
-                RegB = BC[0];
-                RegC = BC[1];
-                return 2;
+                return IncrementPseudoRegister(ref RegB, ref RegC);
 
             // INC B - 0x04
             case 0x04:
                 System.Diagnostics.Debug.WriteLine("INC B - 0x04");
-                RegB++;
-                return 0;
+                return  IncrementRegister(ref RegB);
 
             // DEC B - 0x05
             case 0x05:
@@ -228,6 +272,10 @@ public static class GB
                 RegE = FetchNextByte();
                 RegD = FetchNextByte();
                 return 3;
+
+            // INC DE - 0x13
+            case 0x13:
+                return IncrementPseudoRegister(ref RegD, ref RegE);
 
             default:
                 System.Diagnostics.Debug.WriteLine("OPCODE: " + opcode + " not implemented!");
