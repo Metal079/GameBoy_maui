@@ -78,27 +78,27 @@ public static class GB
     private static void SetFlagN(bool value)
     {
         if (value)
-            RegF = (byte)(RegF | 0b1000_0000);
+            RegF = (byte)(RegF | 0b0100_0000);
         else
-            RegF = (byte)(RegF & 0b0111_0000);
+            RegF = (byte)(RegF & 0b1011_0000);
     }
 
     // Set H flag in F register
     private static void SetFlagH(bool value)
     {
         if (value)
-            RegF = (byte)(RegF | 0b1000_0000);
+            RegF = (byte)(RegF | 0b0010_0000);
         else
-            RegF = (byte)(RegF & 0b0111_0000);
+            RegF = (byte)(RegF & 0b1101_0000);
     }
 
     // Set C flag in F register
     private static void SetFlagC(bool value)
     {
         if (value)
-            RegF = (byte)(RegF | 0b1000_0000);
+            RegF = (byte)(RegF | 0b0001_0000);
         else
-            RegF = (byte)(RegF & 0b0111_0000);
+            RegF = (byte)(RegF & 0b1110_0000);
     }
 
     //byte[] memory= new byte[0xFFFF]; // 16 bit long memory, each cell 8 bits
@@ -135,6 +135,13 @@ public static class GB
     // Increment 8-bit registers
     private static int IncrementRegister(ref byte register)
     {
+        // Check half-carry flag
+        if ((((register & 0xf) + 1) & 0x10) == 0x10)
+            SetFlagH(true);
+        else
+            SetFlagH(false);
+
+        // Increment
         register++;
 
         // Set flags
