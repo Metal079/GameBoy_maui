@@ -9,12 +9,12 @@ namespace GameBoy_maui
 {
 	public partial class MainPage : ContentPage
 	{
-		public MainPage()
+        public MainPage()
 		{
             InitializeComponent();
 
-            //string romPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\cpu_instrs\individual\06-ld r,r.gb";
-            //byte[] bytes = GB.LoadRom(romPath);
+            string romPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\cpu_instrs\individual\06-ld r,r.gb";
+            GB.LoadRom(romPath);
 
             var viewModel = new MainPageViewModel();
             BindingContext = viewModel;
@@ -31,7 +31,12 @@ namespace GameBoy_maui
         void OnEntryCompleted(object sender, EventArgs e)
         {
             string text = ((Entry)sender).Text;
-            byte command = Byte.Parse(text);
+            if (text =="start")
+                foreach (byte b in GB.memory)
+                {
+                    GB.RunOpcode(b);
+                }
+            byte command = (byte)Convert.ToInt32(text, 16);
             GB.RunOpcode(command);
             GB.SetViewModelRegisters();
         }
