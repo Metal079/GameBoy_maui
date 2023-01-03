@@ -13,8 +13,9 @@ namespace GameBoy_maui
 		{
             InitializeComponent();
 
+            string bootRomPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\dmg_boot.bin";
             string romPath = @"C:\Users\metal\source\repos\Gameboy\Roms\test\cpu_instrs\individual\06-ld r,r.gb";
-            GB.LoadRom(romPath);
+            GB.LoadRom(bootRomPath, romPath);
 
             var viewModel = new MainPageViewModel();
             BindingContext = viewModel;
@@ -32,9 +33,11 @@ namespace GameBoy_maui
         {
             string text = ((Entry)sender).Text;
             if (text =="start")
-                foreach (byte b in GB.memory)
+                while (true)
                 {
+                    byte b = GB.FetchNextByte();
                     GB.RunOpcode(b);
+                    GB.SetViewModelRegisters();
                 }
             byte command = (byte)Convert.ToInt32(text, 16);
             GB.RunOpcode(command);

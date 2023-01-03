@@ -88,13 +88,18 @@ public static class GB
     }
 
     // Load ROM file to memory (only 32kb for now)
-    public static void LoadRom(string romPath)
+    public static void LoadRom(string bootRomPath, string romPath)
     {
-
         byte[] Bytes = File.ReadAllBytes(romPath);
         for(var i = 0; i < Bytes.Count(); i++)
         {
             memory[i] = Bytes[i];
+        }
+
+        byte[] bootRom = File.ReadAllBytes(bootRomPath);
+        for (var i = 0; i < bootRom.Count(); i++)
+        {
+            memory[i] = bootRom[i];
         }
     }
 
@@ -104,6 +109,97 @@ public static class GB
         byte nextByte = memory[PC];
         PC += 1;
         return nextByte;
+    }
+
+    // Add two 8-bit registers
+    private static int AddRegisters(ref byte target, ref byte source)
+    {
+        uint carry = ((uint)target + (uint)source) >> 9;
+
+        // Check half-carry flag
+        if ((((target & 0xf) + source) & 0x10) == 0x10)
+            SetFlagH(true);
+        else
+            SetFlagH(false);
+
+        target += source;
+
+        if (target == 0)
+            SetFlagZ(true);
+        else
+            SetFlagZ(false);
+
+        SetFlagN(false);
+
+        if (carry >= 1)
+            SetFlagC(true);
+        else 
+            SetFlagC(false);
+
+        return 1;
+    }
+
+    // Add two 16-bit registers
+    private static int AddRegisters(ref byte regH, ref byte regL, ref byte sourceUpper, ref byte sourceLower)
+    {
+        uint pseudoHL = (ushort)((regH << 8) + regL);
+        uint pseudoSource = (ushort)((sourceUpper << 8) + sourceLower);
+
+        uint carry = ((uint)pseudoHL + (uint)pseudoSource) >> 17;
+
+        // Check half-carry flag
+        if ((((pseudoHL & 0xf) + pseudoSource) & 0x10) == 0x10)
+            SetFlagH(true);
+        else
+            SetFlagH(false);
+
+        pseudoHL += pseudoSource;
+
+        regH = (byte)(pseudoHL >> 8);
+        regL = (byte)(pseudoHL & 0b0000_0000_1111_1111);
+
+        SetFlagN(false);
+
+        if (carry >= 1)
+            SetFlagC(true);
+        else
+            SetFlagC(false);
+
+        return 2;
+    }
+
+    // Sub two 8-bit registers
+    private static int SubRegisters(ref byte target, ref byte source)
+    {
+        int result = target - source;
+        if (result < 0)
+        {
+            // Set the Carry flag (CF)
+            // CF = 1 indicates a carry occurred
+            // CF = 0 indicates a carry did not occur
+            SetFlagC(true);
+        }
+        else
+        {
+            SetFlagC(false);
+        }
+
+        // Check half-carry flag
+        if ((((target & 0xf) - source) & 0x10) == 0x10)
+            SetFlagH(true);
+        else
+            SetFlagH(false);
+
+        target -= source;
+
+        if (target == 0)
+            SetFlagZ(true);
+        else
+            SetFlagZ(false);
+
+        SetFlagN(true);
+
+        return 1;
     }
 
     // Increment 16-bit registers (ex. BC)
@@ -211,6 +307,22 @@ public static class GB
     {
         reg = FetchNextByte();
         return 2;
+    }
+
+    // XOR 8-bit registers
+    private static int XorRegister(ref byte target, ref byte source)
+    {
+        target = (byte)(target ^ source);
+
+        if (target == 0)
+            SetFlagZ(true);
+        else
+            SetFlagZ(true);
+
+        SetFlagN(false);
+        SetFlagH(false);
+        SetFlagC(false);
+        return 1;
     }
 
     // Run inputted opcode, return m-cycles opcode takes
@@ -350,11 +462,29 @@ public static class GB
 
                 return 1;
 
+            // JR NZ,i8 - 0x20
+            case 0x20:
+                if (RegF >> 7 == 1)
+                {
+                    PC = (ushort)(PC + FetchNextByte());
+                    return 3;
+                }
+                else
+                    return 2;
+
             // LD HL,u16 - 0x21
             case 0x21:
                 RegH = FetchNextByte();
                 RegL = FetchNextByte();
                 return 3;
+
+            // LD (HL+),A - 0x22
+            case 0x22:
+                LoadRegToPseudoReg(ref RegH, ref RegL, ref RegA);
+                if (RegL == 255)
+                    RegH++;
+                RegL++;
+                return 2;
 
             // INC H - 0x24
             case 0x24:
@@ -370,6 +500,14 @@ public static class GB
                 var lower_byte = FetchNextByte();
                 SP = (ushort)(upper_byte << 8 | lower_byte);
                 return 3;
+
+            // LD (HL-),A - 0x32
+            case 0x32:
+                LoadRegToPseudoReg(ref RegH, ref RegL, ref RegA);
+                if (RegL == 0)
+                    RegH--;
+                RegL--;
+                return 2;
 
             // LD B,B - 0x40 // IS this right?
             case 0x40:
@@ -683,6 +821,55 @@ public static class GB
             case 0x7F:
                 RegA = RegA;
                 return 1;
+
+            // XOR A,B - 0xA8
+            case 0xA8:
+                return XorRegister(ref RegA, ref RegB);
+
+            // XOR A,C - 0xA9
+            case 0xA9:
+                return XorRegister(ref RegA, ref RegC);
+
+            // XOR A,D - 0xAA
+            case 0xAA:
+                return XorRegister(ref RegA, ref RegD);
+
+            // XOR A,E - 0xAB
+            case 0xAB:
+                return XorRegister(ref RegA, ref RegE);
+
+            // XOR A,H - 0xAC
+            case 0xAC:
+                return XorRegister(ref RegA, ref RegH);
+
+            // XOR A,L - 0xAD
+            case 0xAD:
+                return XorRegister(ref RegA, ref RegL);
+
+            // XOR A,A - 0xAF
+            case 0xAF:
+                return XorRegister(ref RegA, ref RegA);
+
+            // JP NZ,u16 - 0xC2
+            case 0xC2:
+                {
+                    if (RegF >> 7 == 1)
+                    {
+                        ushort u16 = (ushort)((FetchNextByte() << 8) + FetchNextByte());
+                        PC = u16;
+                        return 4;
+                    }
+                    else
+                        return 3;
+                }
+
+            // JP u16 - 0xC3
+            case 0xC3:
+                {
+                    ushort u16 = (ushort)((FetchNextByte() << 8) + FetchNextByte());
+                    PC = u16;
+                    return 4;
+                }
 
             default:
                 System.Diagnostics.Debug.WriteLine("OPCODE: " + opcode + " not implemented!");
