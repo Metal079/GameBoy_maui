@@ -50,7 +50,7 @@ public static class GB
     static ushort PC = 0;
 
     //byte[] memory= new byte[0xFFFF]; // 16 bit long memory, each cell 8 bits
-    public static byte[] memory = new byte[0xFFFF];
+    public static byte[] memory = new byte[0x10000];
 
     // Set Z flag in F register
     private static void SetFlagZ(bool value)
@@ -295,11 +295,10 @@ public static class GB
         reg2 = FetchNextByte();
     }
 
-    // Load into pseudo registers from other reg (ex. A -> BC), reg1 -> B, reg2 -> C, reg3 -> A
-    private static int LoadRegToPseudoReg(ref byte regTargetUpper, ref byte regTargetLower, ref byte regSource)
+    // Load into pseudo registers memory address from other reg (ex. A -> (BC)), reg1 -> B, reg2 -> C, reg3 -> A
+    private static int LoadRegToPseudoReg(ushort target, byte regSource)
     {
-        regTargetUpper = 0;
-        regTargetLower = regSource;
+        memory[target] = regSource;
         return 2;
     }
 
@@ -538,6 +537,107 @@ public static class GB
         SetFlagC(false);
     }
 
+    // CP OPCODE (compare registers, subtract the second register from the first to set flags in the Status Register. However, cp leaves the registers themselves unmodified.)
+    private static void CP(byte target, byte source)
+    {
+        byte result = (byte)(target - source);
+
+        if (result == 0)
+            SetFlagZ(true);
+        else
+            SetFlagZ(false);
+
+        SetFlagN(true);
+
+        // Check half-carry flag
+        if ((((target & 0xf) - source) & 0x10) == 0x10)
+            SetFlagH(true);
+        else
+            SetFlagH(false);
+
+        if (result < 0)
+        {
+            // Set the Carry flag (CF)
+            // CF = 1 indicates a carry occurred
+            // CF = 0 indicates a carry did not occur
+            SetFlagC(true);
+        }
+        else
+        {
+            SetFlagC(false);
+        }
+    }
+
+    // OR 8-bit register
+    private static void OR8BitRegisters(ref byte target, byte source)
+    {
+        target = (byte)(target | source);
+
+        if (target == 0) SetFlagZ(true);
+        else SetFlagZ(false);
+
+        SetFlagN(false);
+        SetFlagH(false);
+        SetFlagC(false);
+    }
+
+    // XOR 8-bit register
+    private static void XOR8BitRegisters(ref byte target, byte source)
+    {
+        target = (byte)(target ^ source);
+
+        if (target == 0) SetFlagZ(true);
+        else SetFlagZ(false);
+
+        SetFlagN(false);
+        SetFlagH(false);
+        SetFlagC(false);
+    }
+
+    // AND 8-bit register
+    private static void AND8BitRegisters(ref byte target, byte source)
+    {
+        target = (byte)(target & source);
+
+        if (target == 0) SetFlagZ(true);
+        else SetFlagZ(false);
+
+        SetFlagN(false);
+        SetFlagH(true);
+        SetFlagC(false);
+    }
+
+    // CALL (call to nn, SP=SP-2, (SP)=PC, PC=nn)
+    private static void CALL(byte upperByte, byte lowerByte)
+    {
+        SP = (ushort) (SP - 2);
+
+        byte PC_upper = (byte)(PC >> 8);
+        byte PC_lower = (byte)PC;
+
+        memory[SP] = PC_upper;
+        memory[SP+1] = PC_lower;
+        PC = (ushort)((upperByte << 8) | lowerByte);
+    }
+
+    // PUSH
+    private static void PUSH(byte upperReg, byte lowerReg)
+    {
+        SP = (ushort)(SP - 2);
+
+        memory[SP] = upperReg;
+        memory[SP+1] = lowerReg;
+    }
+
+    // POP
+    private static void POP(byte upperReg, byte lowerReg)
+    {
+        upperReg = memory[SP];
+        lowerReg= memory[SP+1];
+
+        SP = (ushort)(SP + 2);
+    }
+
     // Run inputted opcode, return m-cycles opcode takes
     public static int RunOpcode(byte opcode)
     {
@@ -557,7 +657,7 @@ public static class GB
             // LD (BC),A - 0x02
             case 0x02:
                 System.Diagnostics.Debug.WriteLine("LD (BC),A - 0x02");
-                return LoadRegToPseudoReg(ref RegB, ref RegC, ref RegA);
+                return LoadRegToPseudoReg((ushort)((RegB << 8) | RegC), RegA);
 
             // INC BC - 0x03
             case 0x03:
@@ -693,10 +793,7 @@ public static class GB
 
             // LD (HL+),A - 0x22
             case 0x22:
-                LoadRegToPseudoReg(ref RegH, ref RegL, ref RegA);
-                if (RegL == 255)
-                    RegH++;
-                RegL++;
+                
                 return 2;
 
             // INC H - 0x24
@@ -2554,6 +2651,91 @@ public static class GB
                         return 0;
                 }
 
+            // LD (FF00+u8),A - 0xE0
+            case 0xE0:
+
+
+
+            // POP HL - 0xE1
+            case 0xE1:
+                POP(RegH, RegL);
+                return 3;
+
+            // LD (FF00+C),A - 0xE2
+            case 0xE2:
+                memory[(byte)(0xFF00 + RegC)] = RegA;
+                return 2;
+
+            // PUSH HL - 0xE5
+            case 0xE5:
+                PUSH(RegH, RegL);
+                return 3;
+
+            // AND A,u8 - 0xE6
+            case 0xE6:
+                AND8BitRegisters(ref RegA, FetchNextByte());
+                return 2;
+
+
+            // RST 20h - 0xE7
+            case 0xE7:
+                CALL(0x00, 0x20);
+                return 4;
+
+            // ADD SP,i8 - 0xE8
+            case 0xE8:
+                {
+                    sbyte i8 = (sbyte)FetchNextByte();
+                    int carry = (SP + i8) >> 16;
+
+                    // Check half-carry flag
+                    if ((((SP & 0b0000_1111_1111_1111) + i8) & 0b0001_0000_0000_0000) == 0b0001_0000_0000_0000)
+                        SetFlagH(true);
+                    else
+                        SetFlagH(false);
+
+                    SP = (ushort)(SP + i8);
+
+                    SetFlagZ(false);
+                    SetFlagN(false);
+
+                    if (carry >= 1)
+                        SetFlagC(true);
+                    else
+                        SetFlagC(false);
+
+                    return 4;
+                }
+
+
+            // JP HL - 0xE9
+            case 0xE9:
+
+
+            // LD (u16),A - 0xEA
+            case 0xEA:
+                {
+                    byte upperByte = FetchNextByte();
+                    byte lowerByte = FetchNextByte();
+
+                    memory[upperByte] = (byte)(RegA >> 8);
+                    memory[lowerByte] = (byte)(RegA);
+
+                    return 4;
+                }
+
+            // XOR A,u8 - 0xEE
+            case 0xEE:
+                XOR8BitRegisters(ref RegA, FetchNextByte());
+                return 2;
+
+
+            // RST 28h - 0xEF
+            case 0xEF:
+                CALL(0x00, 0x38);
+                return 4;
+
+
             // LD A,(FF00+u8) - 0xF0
             case 0xF0:
                 {
@@ -2565,7 +2747,8 @@ public static class GB
 
             // POP AF - 0xF1
             case 0xF1:
-                return
+                POP(RegA, RegF);
+                return 4;
 
             // LD A,(FF00+C) - 0xF2
             case 0xF2:
@@ -2581,19 +2764,46 @@ public static class GB
 
             // PUSH AF - 0xF5
             case 0xF5:
-                return
+                PUSH(RegA, RegF);
+                return 4;
 
             // OR A,u8 - 0xF6
             case 0xF6:
-                return
+                OR8BitRegisters(ref RegA, FetchNextByte());
+                return 2;
 
             // RST 30h - 0xF7
             case 0xF7:
-                return
+                CALL(0x00, 0x30);
+                return 4;
 
             // LD HL,SP+i8 - 0xF8
             case 0xF8:
-                return
+                {
+                    ushort HL = (ushort)((RegH << 8) | RegL);
+                    sbyte i8 = (sbyte) FetchNextByte();
+
+                    // Check carry
+                    int carry = (HL + i8) >> 16;
+
+                    // Check half-carry flag
+                    if ((((HL & 0b0000_1111_1111_1111) + i8) & 0b0001_0000_0000_0000) == 0b0001_0000_0000_0000)
+                        SetFlagH(true);
+                    else
+                        SetFlagH(false);
+
+                    HL = (ushort)(SP + i8);
+
+                    SetFlagZ(false);
+                    SetFlagN(false);
+
+                    if (carry >= 1)
+                        SetFlagC(true);
+                    else
+                        SetFlagC(false);
+
+                    return 3;
+                }
 
             // LD SP,HL - 0xF9
             case 0xF9:
@@ -2620,14 +2830,16 @@ public static class GB
 
             // CP A,u8 - 0xFE
             case 0xFE:
-                return
+                CP(RegA, FetchNextByte());
+                return 4;
 
             // RST 38h - 0xFF
             case 0xFF:
-                return
+                CALL(0x00, 0x38);
+                return 4;
 
             default:
-                System.Diagnostics.Debug.WriteLine("OPCODE: " + opcode + " not implemented!");
+                System.Diagnostics.Debug.WriteLine("OPCODE: " + opcode.ToString("X") + " not implemented!");
                 return 0;
         }
     }
