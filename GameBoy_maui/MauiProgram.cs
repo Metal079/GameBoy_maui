@@ -113,7 +113,7 @@ public static class GB
     }
 
     // Add two 8-bit registers
-    private static int AddRegisters(ref byte target, ref byte source)
+    private static int Add8bitRegisters(ref byte target, byte source)
     {
         uint carry = ((uint)target + (uint)source) >> 9;
 
@@ -170,7 +170,7 @@ public static class GB
     }
 
     // Sub two 8-bit registers
-    private static int SubRegisters(ref byte target, ref byte source)
+    private static int Sub8BitRegisters(ref byte target, byte source)
     {
         int result = target - source;
         if (result < 0)
@@ -310,7 +310,7 @@ public static class GB
     }
 
     // XOR 8-bit registers
-    private static int XorRegister(ref byte target, ref byte source)
+    private static int XorRegister(ref byte target, byte source)
     {
         target = (byte)(target ^ source);
 
@@ -607,6 +607,59 @@ public static class GB
         SetFlagC(false);
     }
 
+    // ADC 2 8 bit bytes
+    private static void ADC8BitRegisters(ref byte target, byte source)
+    {
+        var carry = RegF & 0b0001_0000;
+
+        ushort result = (ushort)(target + source + carry);
+        target = (byte) result;
+
+        // Check zero flag
+        if (target == 0) SetFlagZ(true);
+        else SetFlagZ(false);
+
+        SetFlagN(false);
+
+        // Check half-carry flag
+        if ((((target & 0xf) + source) & 0x10) == 0x10)
+            SetFlagH(true);
+        else
+            SetFlagH(false);
+
+        if ((result >> 8) >= 1)
+            SetFlagC(true);
+        else
+            SetFlagC(false);
+    }
+
+    // SBC 2 8 bit bytes
+    private static void SBC8BitRegisters(ref byte target, byte source)
+    {
+        var carry = RegF & 0b0001_0000;
+
+        int result = target - source - carry;
+        target = (byte) result;
+
+
+        // Check zero flag
+        if (target == 0) SetFlagZ(true);
+        else SetFlagZ(false);
+
+        SetFlagN(true);
+
+        // Check half-carry flag
+        if ((((target & 0xf) - source) & 0x10) == 0x10)
+            SetFlagH(true);
+        else
+            SetFlagH(false);
+
+        if (result < 0)
+            SetFlagC(true);
+        else
+            SetFlagC(false);
+    }
+
     // CALL (call to nn, SP=SP-2, (SP)=PC, PC=nn)
     private static void CALL(byte upperByte, byte lowerByte)
     {
@@ -636,6 +689,12 @@ public static class GB
         lowerReg= memory[SP+1];
 
         SP = (ushort)(SP + 2);
+    }
+
+    // Get pseudo register from 2 8-bit registers
+    private static ushort GetPseudoRegister(byte upperByte, byte lowerByte)
+    {
+        return (ushort)((upperByte << 8) | lowerByte);
     }
 
     // Run inputted opcode, return m-cycles opcode takes
@@ -735,11 +794,18 @@ public static class GB
                 System.Diagnostics.Debug.WriteLine("RRCA - 0x0F");
                 return 0;
 
+            // STOP - 0x10
+            case 0x10:
+
+
             // LD DE,u16 - 0x11
             case 0x11:
                 RegE = FetchNextByte();
                 RegD = FetchNextByte();
                 return 3;
+
+            // LD (DE),A - 0x12
+            case 0x12:
 
             // INC DE - 0x13
             case 0x13:
@@ -748,6 +814,12 @@ public static class GB
             // INC D - 0x14
             case 0x14:
                 return DecrementRegister(ref RegD);
+
+            // DEC D - 0x15
+            case 0x15:
+
+            // LD D,u8 - 0x16
+            case 0x16:
 
             // RLA - 0x17
             case 0x17:
@@ -775,6 +847,30 @@ public static class GB
 
                 return 1;
 
+            // JR i8 - 0x18
+            case 0x18:
+
+            // ADD HL,DE - 0x19
+            case 0x19:
+
+            // LD A,(DE) - 0x1A
+            case 0x1A:
+
+            // DEC DE - 0x1B
+            case 0x1B:
+
+            // INC E - 0x1C
+            case 0x1C:
+
+            // DEC E - 0x1D
+            case 0x1D:
+
+            // LD E,u8 - 0x1E
+            case 0x1E:
+
+            // RRA - 0x1F
+            case 0x1F:
+
             // JR NZ,i8 - 0x20
             case 0x20:
                 if (RegF >> 7 == 1)
@@ -796,6 +892,9 @@ public static class GB
                 
                 return 2;
 
+            // INC HL - 0x23
+            case 0x23:
+
             // INC H - 0x24
             case 0x24:
                 return IncrementRegister(ref RegH);
@@ -803,6 +902,36 @@ public static class GB
             // DEC H - 0x25
             case 0x25:
                 return DecrementRegister(ref RegH);
+
+            // LD H,u8 - 0x26
+            case 0x26:
+
+            // DAA - 0x27
+            case 0x27:
+
+            // JR Z,i8 - 0x28
+            case 0x28:
+
+            // ADD HL,HL - 0x29
+            case 0x29:
+
+            // LD A,(HL+) - 0x2A
+            case 0x2A:
+
+            // DEC HL - 0x2B
+            case 0x2B:
+
+            // INC L - 0x2C
+            case 0x2C:
+
+            // DEC L - 0x2D
+            case 0x2D:
+
+            // LD L,u8 - 0x2E
+            case 0x2E:
+
+            // CPL - 0x2F
+            case 0x2F:
 
             // LD SP,u16 - 0x31
             case 0x31:
@@ -813,7 +942,7 @@ public static class GB
 
             // LD (HL-),A - 0x32
             case 0x32:
-                LoadRegToPseudoReg(ref RegH, ref RegL, ref RegA);
+                LoadRegToPseudoReg((ushort)((RegH << 8) | RegL), RegA);
                 if (RegL == 0)
                     RegH--;
                 RegL--;
@@ -1061,27 +1190,27 @@ public static class GB
 
             // LD (HL),B - 0x70
             case 0x70:
-                return LoadRegToPseudoReg(ref RegH, ref RegL, ref RegB);
+                return LoadRegToPseudoReg((ushort)((RegH << 8) | RegL), RegB);
 
             // LD (HL),C - 0x71
             case 0x71:
-                return LoadRegToPseudoReg(ref RegH, ref RegL, ref RegC);
+                return LoadRegToPseudoReg((ushort)((RegH << 8) | RegL), RegC);
 
             // LD (HL),D - 0x72
             case 0x72:
-                return LoadRegToPseudoReg(ref RegH, ref RegL, ref RegD);
+                return LoadRegToPseudoReg((ushort)((RegH << 8) | RegL), RegD);
 
             // LD (HL),E - 0x73
             case 0x73:
-                return LoadRegToPseudoReg(ref RegH, ref RegL, ref RegE);
+                return LoadRegToPseudoReg((ushort)((RegH << 8) | RegL), RegE);
 
             // LD (HL),H - 0x74
             case 0x74:
-                return LoadRegToPseudoReg(ref RegH, ref RegL, ref RegH);
+                return LoadRegToPseudoReg((ushort)((RegH << 8) | RegL), RegH);
 
             // LD (HL),L - 0x75
             case 0x75:
-                return LoadRegToPseudoReg(ref RegH, ref RegL, ref RegL);
+                return LoadRegToPseudoReg((ushort)((RegH << 8) | RegL), RegL);
 
             // TODO
             // HALT - 0x76
@@ -1090,7 +1219,7 @@ public static class GB
 
             // LD (HL),A - 0x77
             case 0x77:
-                return LoadRegToPseudoReg(ref RegH, ref RegL, ref RegA);
+                return LoadRegToPseudoReg((ushort)((RegH << 8) | RegL), RegA);
 
             // LD A,B - 0x78
             case 0x78:
@@ -1132,33 +1261,287 @@ public static class GB
                 RegA = RegA;
                 return 1;
 
+            // ADD A,B - 0x80
+            case 0x80:
+                Add8bitRegisters(ref RegA, RegB);
+                return 1;
+
+            // ADD A,C - 0x81
+            case 0x81:
+                Add8bitRegisters(ref RegA, RegC);
+                return 1;
+
+            // ADD A,D - 0x82
+            case 0x82:
+                Add8bitRegisters(ref RegA, RegD);
+                return 1;
+
+            // ADD A,E - 0x83
+            case 0x83:
+                Add8bitRegisters(ref RegA, RegE);
+                return 1;
+
+            // ADD A,H - 0x84
+            case 0x84:
+                Add8bitRegisters(ref RegA, RegH);
+                return 1;
+
+            // ADD A,L - 0x85
+            case 0x85:
+                Add8bitRegisters(ref RegA, RegL);
+                return 1;
+
+            // ADD A,(HL) - 0x86
+            case 0x86:
+                Add8bitRegisters(ref RegA, memory[GetPseudoRegister(RegH, RegL)]);
+                return 2;
+
+            // ADD A,A - 0x87
+            case 0x87:
+                Add8bitRegisters(ref RegA, RegA);
+                return 1;
+
+            // ADC A,B - 0x88
+            case 0x88:
+                ADC8BitRegisters(ref RegA, RegB);
+                return 1;
+
+            // ADC A,C - 0x89
+            case 0x89:
+                ADC8BitRegisters(ref RegA, RegC);
+                return 1;
+
+            // ADC A,D - 0x8A
+            case 0x8A:
+                ADC8BitRegisters(ref RegA, RegD);
+                return 1;
+
+            // ADC A,E - 0x8B
+            case 0x8B:
+                ADC8BitRegisters(ref RegA, RegE);
+                return 1;
+
+            // ADC A,H - 0x8C
+            case 0x8C:
+                ADC8BitRegisters(ref RegA, RegH);
+                return 1;
+
+            // ADC A,L - 0x8D
+            case 0x8D:
+                ADC8BitRegisters(ref RegA, RegL);
+                return 1;
+
+            // ADC A,(HL) - 0x8E
+            case 0x8E:
+                ADC8BitRegisters(ref RegA, memory[GetPseudoRegister(RegH, RegL)]);
+                return 2;
+
+            // ADC A,A - 0x8F
+            case 0x8F:
+                ADC8BitRegisters(ref RegA, RegA);
+                return 1;
+
+            // SUB A,B - 0x90
+            case 0x90:
+                Sub8BitRegisters(ref RegA, RegB);
+                return 1;
+
+            // SUB A,C - 0x91
+            case 0x91:
+                Sub8BitRegisters(ref RegA, RegC);
+                return 1;
+
+            // SUB A,D - 0x92
+            case 0x92:
+                Sub8BitRegisters(ref RegA, RegD);
+                return 1;
+
+            // SUB A,E - 0x93
+            case 0x93:
+                Sub8BitRegisters(ref RegA, RegE);
+                return 1;
+
+            // SUB A,H - 0x94
+            case 0x94:
+                Sub8BitRegisters(ref RegA, RegH);
+                return 1;
+
+            // SUB A,L - 0x95
+            case 0x95:
+                Sub8BitRegisters(ref RegA, RegL);
+                return 1;
+
+            // SUB A,(HL) - 0x96
+            case 0x96:
+                Sub8BitRegisters(ref RegA, memory[GetPseudoRegister(RegH, RegL)]);
+                return 2;
+
+            // SUB A,A - 0x97
+            case 0x97:
+                Sub8BitRegisters(ref RegA, RegA);
+                return 1;
+
+            // SBC A,B - 0x98
+            case 0x98:
+                SBC8BitRegisters(ref RegA, RegB);
+                return 1;
+
+            // SBC A,C - 0x99
+            case 0x99:
+                SBC8BitRegisters(ref RegA, RegC);
+                return 1;
+
+            // SBC A,D - 0x9A
+            case 0x9A:
+                SBC8BitRegisters(ref RegA, RegD);
+                return 1;
+
+            // SBC A,E - 0x9B
+            case 0x9B:
+                SBC8BitRegisters(ref RegA, RegE);
+                return 1;
+
+            // SBC A,H - 0x9C
+            case 0x9C:
+                SBC8BitRegisters(ref RegA, RegH);
+                return 1;
+
+            // SBC A,L - 0x9D
+            case 0x9D:
+                SBC8BitRegisters(ref RegA, RegL);
+                return 1;
+
+            // SBC A,(HL) - 0x9E
+            case 0x9E:
+                SBC8BitRegisters(ref RegA, memory[GetPseudoRegister(RegH, RegL)]);
+                return 2;
+
+            // SBC A,A - 0x9F
+            case 0x9F:
+                SBC8BitRegisters(ref RegA, RegA);
+                return 1;
+
+            // AND A,B - 0xA0
+            case 0xA0:
+                AND8BitRegisters(ref RegA, RegB);
+                return 1;
+
+            // AND A,C - 0xA1
+            case 0xA1:
+                AND8BitRegisters(ref RegA, RegC);
+                return 1;
+
+            // AND A,D - 0xA2
+            case 0xA2:
+                AND8BitRegisters(ref RegA, RegD);
+                return 1;
+
+            // AND A,E - 0xA3
+            case 0xA3:
+                AND8BitRegisters(ref RegA, RegE);
+                return 1;
+
+            // AND A,H - 0xA4
+            case 0xA4:
+                AND8BitRegisters(ref RegA, RegH);
+                return 1;
+
+            // AND A,L - 0xA5
+            case 0xA5:
+                AND8BitRegisters(ref RegA, RegL);
+                return 1;
+
+            // AND A,(HL) - 0xA6
+            case 0xA6:
+                AND8BitRegisters(ref RegA, memory[GetPseudoRegister(RegH, RegL)]);
+                return 1;
+
+            // AND A,A - 0xA7
+            case 0xA7:
+                AND8BitRegisters(ref RegA, RegA);
+                return 1;
+
             // XOR A,B - 0xA8
             case 0xA8:
-                return XorRegister(ref RegA, ref RegB);
+                return XorRegister(ref RegA, RegB);
 
             // XOR A,C - 0xA9
             case 0xA9:
-                return XorRegister(ref RegA, ref RegC);
+                return XorRegister(ref RegA, RegC);
 
             // XOR A,D - 0xAA
             case 0xAA:
-                return XorRegister(ref RegA, ref RegD);
+                return XorRegister(ref RegA, RegD);
 
             // XOR A,E - 0xAB
             case 0xAB:
-                return XorRegister(ref RegA, ref RegE);
+                return XorRegister(ref RegA, RegE);
 
             // XOR A,H - 0xAC
             case 0xAC:
-                return XorRegister(ref RegA, ref RegH);
+                return XorRegister(ref RegA, RegH);
 
             // XOR A,L - 0xAD
             case 0xAD:
-                return XorRegister(ref RegA, ref RegL);
+                return XorRegister(ref RegA, RegL);
 
             // XOR A,A - 0xAF
             case 0xAF:
-                return XorRegister(ref RegA, ref RegA);
+                return XorRegister(ref RegA, RegA);
+
+            // OR A,B - 0xB0
+            case 0x
+
+            // OR A,C - 0xB1
+            case 0x
+
+            // OR A,D - 0xB2
+            case 0x
+
+            // OR A,E - 0xB3
+            case 0x
+
+            // OR A,H - 0xB4
+            case 0x
+
+            // OR A,L - 0xB5
+            case 0x
+
+            // OR A,(HL) - 0xB6
+            case 0x
+
+            // OR A,A - 0xB7
+            case 0x
+
+            // CP A,B - 0xB8
+            case 0x
+
+            // CP A,C - 0xB9
+            case 0x
+
+            // CP A,D - 0xBA
+            case 0x
+
+            // CP A,E - 0xBB
+            case 0x
+
+            // CP A,H - 0xBC
+            case 0x
+
+            // CP A,L - 0xBD
+            case 0x
+
+            // CP A,(HL) - 0xBE
+            case 0x
+
+            // CP A,A - 0xBF
+            case 0x
+
+            // RET NZ - 0xC0
+            case 0x
+
+            // POP BC - 0xC1
+            case 0x
 
             // JP NZ,u16 - 0xC2
             case 0xC2:
@@ -2651,10 +3034,63 @@ public static class GB
                         return 0;
                 }
 
+            // CALL Z,u16 - 0xCC
+            case 0xCC:
+
+            // CALL u16 - 0xCD
+            case 0xCD:
+
+            // ADC A,u8 - 0xCE
+            case 0xCE:
+                ADC8BitRegisters(ref RegA, FetchNextByte());
+                return 2;
+
+            // RST 08h - 0xCF
+            case 0xCF:
+                CALL(0x00, 0x08);
+                return 4;
+
+            // RET NC - 0xD0
+            case 0xD0:
+
+            // POP DE - 0xD1
+            case 0xD1:
+
+            // JP NC,u16 - 0xD2
+            case 0xD2:
+
+            // CALL NC,u16 - 0xD4
+            case 0xD4:
+
+            // PUSH DE - 0xD5
+            case 0xD5:
+
+            // SUB A,u8 - 0xD6
+            case 0xD6:
+
+            // RST 10h - 0xD7
+            case 0xD7:
+
+            // RET C - 0xD8
+            case 0xD8:
+
+            // RETI - 0xD9
+            case 0xD9:
+
+            // JP C,u16 - 0xDA
+            case 0xDA:
+
+            // CALL C,u16 - 0xDC
+            case 0xDC:
+
+            // SBC A,u8 - 0xDE
+            case 0xDE:
+
+            // RST 18h - 0xDF
+            case 0xDF:
+
             // LD (FF00+u8),A - 0xE0
             case 0xE0:
-
-
 
             // POP HL - 0xE1
             case 0xE1:
